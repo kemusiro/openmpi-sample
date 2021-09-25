@@ -40,8 +40,8 @@ def calc_PQT_local(n1, n2):
                          PQT1[2] * PQT2[1] + PQT1[0] * PQT2[2]])
 
 # 円周率が何桁まで一致するかを判定する。
-def check_pi():
-    with open('/share/common/pi-10oku.txt', 'rb') as f0, \
+def check_pi(pifile):
+    with open(pifile, 'rb') as f0, \
          open('pi.txt', 'rb') as f1:
         # 2つのファイルをメモリにマップして比較する。
         with mmap.mmap(f0.fileno(), 0, flags=mmap.MAP_PRIVATE) as mm0, \
@@ -94,6 +94,10 @@ if __name__ == '__main__':
         with open('pi.txt', 'w') as f:
             f.write(str(pi))
         print('checking...')
-        n = check_pi()
+        if len(sys.argv) > 2:
+            pifile = sys.argv[2]
+        else:
+            pifile = '/share/common/pi-10oku.txt'
+        n = check_pi(pifile)
         print('time = {:.2f} sec.'.format(end - start))
         print(f'match = {n}')
