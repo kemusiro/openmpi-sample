@@ -4,6 +4,7 @@ from gmpy2 import mpz
 import numpy as np
 import mmap
 import sys
+import os
 
 # 円周率を並列に計算する。
 def calc_PQT_root(n):
@@ -40,9 +41,9 @@ def calc_PQT_local(n1, n2):
                          PQT1[2] * PQT2[1] + PQT1[0] * PQT2[2]])
 
 # 円周率が何桁まで一致するかを判定する。
-def check_pi(pifile):
+def check_pi(outfile, pifile):
     with open(pifile, 'rb') as f0, \
-         open('pi.txt', 'rb') as f1:
+         open(outfile, 'rb') as f1:
         # 2つのファイルをメモリにマップして比較する。
         with mmap.mmap(f0.fileno(), 0, flags=mmap.MAP_PRIVATE) as mm0, \
              mmap.mmap(f1.fileno(), 0, flags=mmap.MAP_PRIVATE) as mm1:
@@ -71,12 +72,34 @@ if __name__ == '__main__':
     rank = comm.Get_rank()
     size = comm.Get_size()
     
+    if len(sys.argv) < 2:
+        if rank == size - 1:
+            print('python3 pi_chudnovsky.py <power> [pifile]')
+        sys.exit(0)
+        
+    if not sys.argv[1].isdecimal():
+        if rank == size - 1:
+            print('not decimal value: {}'.format(sys.argv[1]))
+            print('python3 pi_chudnovsky.py power [pifile]')
+        sys.exit(0)
+    power = int(sys.argv[1])
+    
+    if len(sys.argv) == 2:
+        pifile = '/share/common/pi-10oku.txt'
+    else:
+        pifile = sys.argv[2]
+    if not os.path.exists(pifile):
+        if rank == size - 1:
+            print('{} does not exist'.format(pifile))
+            print('python3 pi_chudnovsky.py <power> [pifile]')
+        sys.exit(0)
+    outfile = 'pi.txt'
+    
     A = mpz(13591409)
     B = mpz(545140134)
     C = mpz(640320)
     C3over24 = mpz(C**3 / 24)
 
-    power = int(sys.argv[1])
     n = 2 ** power
     digits = n * 14
     # gmpy2の浮動小数の精度として、求められる円周率の桁数を設定する。
@@ -91,13 +114,9 @@ if __name__ == '__main__':
         temp2 = 12 * (PQT[2] + A * PQT[1])
         pi = temp1 / temp2
         end = MPI.Wtime()
-        with open('pi.txt', 'w') as f:
+        with open(outfile, 'w') as f:
             f.write(str(pi))
         print('checking...')
-        if len(sys.argv) > 2:
-            pifile = sys.argv[2]
-        else:
-            pifile = '/share/common/pi-10oku.txt'
-        n = check_pi(pifile)
+        n = check_pi(outfile, pifile)
         print('time = {:.2f} sec.'.format(end - start))
         print(f'match = {n}')
